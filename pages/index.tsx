@@ -5,47 +5,34 @@ import DeckGL from "@deck.gl/react";
 import { MVTLayer } from "@deck.gl/geo-layers";
 import { GeoJsonLayer } from "@deck.gl/layers";
 import { useEffect, useState } from "react";
-import {
-  Option,
-  some,
-  none,
-  fold,
-  isNone,
-  exists,
-  filterMap,
-} from "fp-ts/Option";
+import { Option, some, none, fold, isNone, exists } from "fp-ts/Option";
 import { pipe } from "fp-ts/pipeable";
 import {
   Spinner,
-  Fieldset,
   Button,
   Card,
   Row,
-  Col,
   Text,
   Description,
   Spacer,
-  Divider,
   Loading,
-  Image,
-  Display,
   Pagination,
-  useClipboard,
-  Input,
 } from "@geist-ui/react";
-import { Star } from "@geist-ui/react-icons";
 
 import axios from "axios";
 import wellknown from "../lib/wellknown";
-import { format } from "date-fns";
 import SearchResultItem from "../components/SearchResultItem";
 
+type Viewport = Partial<Omit<ViewportProps, "width" | "height">> & {
+  width: number | string;
+  height: number | string;
+};
 const MIN_GRID_ZOOM = 3;
 const PAGE_SIZE = 50;
 const SEARCH_API =
   "https://earth-search.aws.element84.com/v0/collections/sentinel-s2-l2a-cogs/items";
 
-const defaultViewport: ViewportProps = {
+const defaultViewport: Viewport = {
   width: "100%",
   height: "100vh",
   latitude: 0,
@@ -66,7 +53,7 @@ const mvtProps = {
   uniqueIdProperty: "id",
 };
 
-const mergeHash = (hash: string, viewport: ViewportProps): ViewportProps => {
+const mergeHash = (hash: string, viewport: Viewport): Viewport => {
   const [zoom, latitude, longitude] = hash
     ?.slice(1)
     .split("/")
@@ -82,31 +69,15 @@ const mergeHash = (hash: string, viewport: ViewportProps): ViewportProps => {
   return viewport;
 };
 
-const extractHash = (viewport: ViewportProps): string =>
+const extractHash = (viewport: Viewport): string =>
   `${viewport.zoom}/${viewport.latitude}/${viewport.longitude}`;
-
-const getVsiPath = (url: string) =>
-  url.startsWith("s3")
-    ? url.replace("s3://", "/vsis3/")
-    : url.replace("http://", "/vsicurl/").replace("https://", "/vsicurl/");
-
-const generateCommand = (name, result) => {
-  return `AWS_DEFAULT_PROFILE=raster-foundry gdal_merge.py -co COMPRESS=DEFLATE -co PREDICTOR=2 -separate -o ${name
-    .toLowerCase()
-    .replaceAll(" ", "_")}.tif '${getVsiPath(
-    result.assets.B04.href
-  )}' '${getVsiPath(result.assets.B03.href)}' '${getVsiPath(
-    result.assets.B02.href
-  )}'`;
-};
 
 export default function Home() {
   if (typeof window === "undefined") return <Spinner />;
 
-  const copy = useClipboard();
   const [hash, setHash] = useHash();
   const [viewportOption, setViewportOption] = useRafState<
-    Option<ViewportProps>
+    Option<Partial<Viewport>>
   >(none);
   const [selectedCellOption, setSelectedCellOption] = useState<Option<any>>(
     none
@@ -114,8 +85,7 @@ export default function Home() {
   const [searchResultsOption, setSearchResultsOption] = useState<Option<any>>(
     none
   );
-  const [savedResults, setSavedResults] = useState([]);
-  const [page, setPage] = useState();
+  const [page, setPage] = useState(1);
 
   const highlightedFeatureId = pipe(
     selectedCellOption,
@@ -177,19 +147,6 @@ export default function Home() {
 
   const onClickClearSelection = () => setSelectedCellOption(none);
 
-  const onClickToggleSave = (cell) => {
-    setSavedResults((savedResults) =>
-      savedResults.findIndex((sr) => sr.id === cell.id) > -1
-        ? savedResults.filter((sr) => sr.id !== cell.id)
-        : [...savedResults, cell]
-    );
-  };
-
-  const onSubmitCommand = (values: any) => {
-    console.log(values);
-    return false;
-  };
-
   return pipe(
     viewportOption,
     fold(
@@ -230,6 +187,8 @@ export default function Home() {
               reuseMaps
               mapboxApiAccessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
               mapStyle="mapbox://styles/akaminsky30/ckeybe3r90rxj1apli1m1oafe"
+              width={viewport.width}
+              height={viewport.height}
             />
           </DeckGL>
           <div className={styles.infoContainer}>
