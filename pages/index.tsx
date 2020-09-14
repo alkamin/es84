@@ -106,7 +106,7 @@ export default function Home() {
     selectedCellOption,
     fold(
       () => null,
-      (cell) => cell.properties.id
+      (cell) => cell?.properties?.id || null
     )
   );
 
