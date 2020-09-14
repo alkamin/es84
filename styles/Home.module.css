@@ -8,11 +8,6 @@
   align-items: center;
 }
 
-.searchCap {
-  position: absolute;
-  margin-top: 12px !important;
-}
-
 .infoContainer {
   position: absolute;
   pointer-events: none;
@@ -30,8 +25,6 @@
   pointer-events: all;
   flex: 1 1 auto;
   overflow-y: scroll;
-  padding-top: 172px;
-  margin-top: -12px;
 }
 
 .resultsContainer {

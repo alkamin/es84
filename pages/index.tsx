@@ -22,6 +22,8 @@ import {
 import axios from "axios";
 import wellknown from "../lib/wellknown";
 import SearchResultItem from "../components/SearchResultItem";
+import buffer from "@turf/buffer";
+import centroid from "@turf/centroid";
 
 type Viewport = Partial<Omit<ViewportProps, "width" | "height">> & {
   width: number | string;
@@ -40,7 +42,7 @@ const defaultViewport: Viewport = {
   zoom: 2,
 };
 
-const mvtProps = {
+const mvtGridProps = {
   data: `/grid1/{z}/{x}/{y}.pbf`,
   minZoom: MIN_GRID_ZOOM,
   maxZoom: 4,
@@ -50,6 +52,16 @@ const mvtProps = {
   getFillColor: [61, 161, 209, 0],
   pickable: true,
   highlightColor: [61, 161, 209, 128],
+  uniqueIdProperty: "id",
+};
+
+const geoJsonResultsProps = {
+  stroked: true,
+  filled: true,
+  lineWidthMinPixels: 4,
+  getLineColor: [248, 28, 229, 255],
+  getFillColor: [248, 28, 229, 0],
+  highlightColor: [248, 28, 229, 128],
   uniqueIdProperty: "id",
 };
 
@@ -85,13 +97,24 @@ export default function Home() {
   const [searchResultsOption, setSearchResultsOption] = useState<Option<any>>(
     none
   );
-  const [page, setPage] = useState(1);
+  const [hoveredResultOption, setHoveredResultOption] = useState<Option<any>>(
+    none
+  );
+  const [page, setPage] = useState<number>(-1);
 
-  const highlightedFeatureId = pipe(
+  const highlightedGridId = pipe(
     selectedCellOption,
     fold(
       () => null,
       (cell) => cell.properties.id
+    )
+  );
+
+  const highlightedResultId = pipe(
+    hoveredResultOption,
+    fold(
+      () => null,
+      (cell) => cell.id
     )
   );
 
@@ -115,13 +138,16 @@ export default function Home() {
         () => {},
         async (selectedCell) => {
           console.log(2);
-          const geom = wellknown(selectedCell.properties.llWkt);
+          const geom = buffer(
+            centroid(wellknown(selectedCell.properties.llWkt)),
+            10,
+            { units: "miles" }
+          ).geometry;
           const resp = await axios.get(
             `${SEARCH_API}?intersects=${encodeURIComponent(
               JSON.stringify(geom)
             )}&limit=${PAGE_SIZE}&page=${page}`
           );
-
           isLatest && setSearchResultsOption(some(resp.data));
         }
       )
@@ -165,24 +191,9 @@ export default function Home() {
             onClick={onClickGrid}
           >
             <MVTLayer
-              {...mvtProps}
-              highlightedFeatureId={highlightedFeatureId}
+              {...mvtGridProps}
+              highlightedFeatureId={highlightedGridId}
             />
-            {pipe(
-              searchResultsOption,
-              fold(
-                () => null,
-                (results) => (
-                  <GeoJsonLayer
-                    data={results}
-                    stroked={true}
-                    filled={false}
-                    lineWidthMinPixels={2}
-                    getLineColor={[248, 28, 229, 255]}
-                  />
-                )
-              )
-            )}
             <StaticMap
               reuseMaps
               mapboxApiAccessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
@@ -212,22 +223,6 @@ export default function Home() {
                 ),
                 (selectedCell) => (
                   <>
-                    {pipe(
-                      searchResultsOption,
-                      fold(
-                        () => null,
-                        (results) =>
-                          results?.features?.length && (
-                            <div className={styles.resultsScrollContainer}>
-                              <div className={styles.resultsContainer}>
-                                {results.features.map((result, key) => (
-                                  <SearchResultItem result={result} key={key} />
-                                ))}
-                              </div>
-                            </div>
-                          )
-                      )
-                    )}
                     <Card
                       className={styles.searchCap}
                       style={{
@@ -282,6 +277,29 @@ export default function Home() {
                         )}
                       </Card.Footer>
                     </Card>
+                    {pipe(
+                      searchResultsOption,
+                      fold(
+                        () => null,
+                        (results) =>
+                          results?.features?.length && (
+                            <div className={styles.resultsScrollContainer}>
+                              <div className={styles.resultsContainer}>
+                                {results.features.map((result, key) => (
+                                  <SearchResultItem
+                                    result={result}
+                                    key={key}
+                                    onHover={(result) =>
+                                      setHoveredResultOption(some(result))
+                                    }
+                                    onLeave={() => setHoveredResultOption(none)}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )
+                      )
+                    )}
                   </>
                 )
               )

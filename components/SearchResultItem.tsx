@@ -14,10 +14,13 @@ import {
 import { Clipboard, Cloud } from "@geist-ui/react-icons";
 
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useHoverDirty, useHover, useRafState } from "react-use";
 
 type Props = {
   result: any;
+  onHover: (result: any) => void;
+  onLeave: (result: any) => void;
 };
 
 const getVsiPath = (url: string) => {
@@ -41,10 +44,16 @@ const generateCommand = (name, result) => {
   )}'`;
 };
 
-export default function SearchResultItem({ result }: Props) {
+export default function SearchResultItem({ result, onHover, onLeave }: Props) {
   const [, setToast] = useToasts();
   const { copy } = useClipboard();
   const [fileName, setFileName] = useState("");
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    console.log(isHovered);
+    isHovered ? onHover(result) : onLeave(result);
+  }, [isHovered]);
 
   const onSubmitCommand = (e: React.FormEvent) => {
     e.stopPropagation();
@@ -57,7 +66,11 @@ export default function SearchResultItem({ result }: Props) {
   };
 
   return (
-    <Card style={{ marginBottom: "8px" }}>
+    <Card
+      style={{ marginBottom: "8px" }}
+      onMouseEnter={() => !isHovered && setIsHovered(true)}
+      onMouseLeave={() => isHovered && setIsHovered(false)}
+    >
       <Card.Content>
         <Row style={{ marginTop: "-8px" }} justify="start" align="middle">
           <Text size={12} b>
