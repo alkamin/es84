@@ -3,7 +3,6 @@ import styles from "../styles/Home.module.css";
 import { StaticMap, ViewportProps } from "react-map-gl";
 import DeckGL from "@deck.gl/react";
 import { MVTLayer } from "@deck.gl/geo-layers";
-import { GeoJsonLayer } from "@deck.gl/layers";
 import { useEffect, useState } from "react";
 import { Option, some, none, fold, isNone, exists } from "fp-ts/Option";
 import { pipe } from "fp-ts/pipeable";
@@ -55,16 +54,6 @@ const mvtGridProps = {
   uniqueIdProperty: "id",
 };
 
-const geoJsonResultsProps = {
-  stroked: true,
-  filled: true,
-  lineWidthMinPixels: 4,
-  getLineColor: [248, 28, 229, 255],
-  getFillColor: [248, 28, 229, 0],
-  highlightColor: [248, 28, 229, 128],
-  uniqueIdProperty: "id",
-};
-
 const mergeHash = (hash: string, viewport: Viewport): Viewport => {
   const [zoom, latitude, longitude] = hash
     ?.slice(1)
@@ -97,9 +86,6 @@ export default function Home() {
   const [searchResultsOption, setSearchResultsOption] = useState<Option<any>>(
     none
   );
-  const [hoveredResultOption, setHoveredResultOption] = useState<Option<any>>(
-    none
-  );
   const [page, setPage] = useState<number>(-1);
 
   const highlightedGridId = pipe(
@@ -107,14 +93,6 @@ export default function Home() {
     fold(
       () => null,
       (cell) => cell?.properties?.id || null
-    )
-  );
-
-  const highlightedResultId = pipe(
-    hoveredResultOption,
-    fold(
-      () => null,
-      (cell) => cell.id
     )
   );
 
@@ -286,14 +264,7 @@ export default function Home() {
                             <div className={styles.resultsScrollContainer}>
                               <div className={styles.resultsContainer}>
                                 {results.features.map((result, key) => (
-                                  <SearchResultItem
-                                    result={result}
-                                    key={key}
-                                    onHover={(result) =>
-                                      setHoveredResultOption(some(result))
-                                    }
-                                    onLeave={() => setHoveredResultOption(none)}
-                                  />
+                                  <SearchResultItem result={result} key={key} />
                                 ))}
                               </div>
                             </div>
@@ -310,14 +281,3 @@ export default function Home() {
     )
   );
 }
-
-// <Source type="geojson" data="/grid.geojson">
-//           <Layer
-//             id="grid"
-//             type="line"
-//             paint={{
-//               "line-color": "blue",
-//               "line-width": 2,
-//             }}
-//           />
-//         </Source>

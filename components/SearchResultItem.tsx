@@ -1,6 +1,5 @@
 import styles from "../styles/Home.module.css";
 import {
-  Button,
   Card,
   Row,
   Text,
@@ -9,18 +8,13 @@ import {
   useClipboard,
   useToasts,
   Spacer,
-  Tag,
 } from "@geist-ui/react";
-import { Clipboard, Cloud } from "@geist-ui/react-icons";
 
 import { format } from "date-fns";
-import { useState, useRef, useEffect } from "react";
-import { useHoverDirty, useHover, useRafState } from "react-use";
+import { useState } from "react";
 
 type Props = {
   result: any;
-  onHover: (result: any) => void;
-  onLeave: (result: any) => void;
 };
 
 const getVsiPath = (url: string) => {
@@ -44,16 +38,10 @@ const generateCommand = (name, result) => {
   )}'`;
 };
 
-export default function SearchResultItem({ result, onHover, onLeave }: Props) {
+export default function SearchResultItem({ result }: Props) {
   const [, setToast] = useToasts();
   const { copy } = useClipboard();
   const [fileName, setFileName] = useState("");
-  const [isHovered, setIsHovered] = useState(false);
-
-  useEffect(() => {
-    console.log(isHovered);
-    isHovered ? onHover(result) : onLeave(result);
-  }, [isHovered]);
 
   const onSubmitCommand = (e: React.FormEvent) => {
     e.stopPropagation();
@@ -66,11 +54,7 @@ export default function SearchResultItem({ result, onHover, onLeave }: Props) {
   };
 
   return (
-    <Card
-      style={{ marginBottom: "8px" }}
-      onMouseEnter={() => !isHovered && setIsHovered(true)}
-      onMouseLeave={() => isHovered && setIsHovered(false)}
-    >
+    <Card style={{ marginBottom: "8px" }}>
       <Card.Content>
         <Row style={{ marginTop: "-8px" }} justify="start" align="middle">
           <Text size={12} b>
