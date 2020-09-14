@@ -7,22 +7,22 @@ import { useEffect, useState } from "react";
 import { Option, some, none, fold, isNone, exists } from "fp-ts/Option";
 import { pipe } from "fp-ts/pipeable";
 import {
-  Spinner,
-  Button,
-  Card,
-  Row,
+  Alert,
+  AlertIcon,
+  Box,
+  Stack,
   Text,
-  Description,
-  Spacer,
-  Loading,
-  Pagination,
-} from "@geist-ui/react";
+  Spinner,
+  Flex,
+  CloseButton,
+} from "@chakra-ui/core";
 
 import axios from "axios";
 import wellknown from "../lib/wellknown";
 import SearchResultItem from "../components/SearchResultItem";
 import buffer from "@turf/buffer";
 import centroid from "@turf/centroid";
+import Card from "../components/Card";
 
 type Viewport = Partial<Omit<ViewportProps, "width" | "height">> & {
   width: number | string;
@@ -180,102 +180,107 @@ export default function Home() {
               height={viewport.height}
             />
           </DeckGL>
-          <div className={styles.infoContainer}>
+          <Flex
+            position="absolute"
+            pointerEvents="none"
+            top="0"
+            right="0"
+            bottom="0"
+            width="340px"
+            padding={2}
+            pb={0}
+            overflowY="auto"
+            align="start"
+          >
             {pipe(
               selectedCellOption,
               fold(
                 () => (
                   <>
                     {viewport.zoom >= MIN_GRID_ZOOM ? (
-                      <Card shadow>
-                        <Text small>
+                      <Alert status="info">
+                        <AlertIcon />
+                        <Text fontSize="sm">
                           Select a grid cell to search for available imagery
                         </Text>
-                      </Card>
+                      </Alert>
                     ) : (
-                      <Card shadow>
-                        <Text small>Zoom in further to select a grid-cell</Text>
-                      </Card>
+                      <Alert status="info">
+                        <AlertIcon />
+                        <Text fontSize="sm">
+                          Zoom in further to select a grid-cell
+                        </Text>
+                      </Alert>
                     )}
                   </>
                 ),
                 (selectedCell) => (
                   <>
-                    <Card
-                      className={styles.searchCap}
-                      style={{
-                        marginBottom: "8px",
-                        pointerEvents: "all",
-                        zIndex: 10,
-                      }}
-                      shadow
+                    <CloseButton
+                      size="md"
+                      onClick={onClickClearSelection}
+                      bg="rgba(255,255,255,0.5)"
+                      mr={2}
+                      pointerEvents="all"
+                    />
+                    <Flex
+                      flex="1 1 auto"
+                      direction="column"
+                      alignSelf="stretch"
                     >
-                      <Card.Content>
-                        <Description
-                          title="Selected Grid-Cell"
-                          content={
-                            <Row align="middle">
-                              {selectedCell.properties.id}
-                              <Spacer x={1} />
-                              <Button
-                                onClick={onClickClearSelection}
-                                size="mini"
-                              >
-                                Unselect
-                              </Button>
-                            </Row>
-                          }
-                        />
-                      </Card.Content>
-                      <Card.Footer
-                        style={{ backgroundColor: "rgb(250, 250, 250)" }}
-                      >
-                        {pipe(
-                          searchResultsOption,
-                          fold(
-                            () => <Loading>Loading results</Loading>,
-                            (results) => (
-                              <Row justify="center" style={{ width: "100%" }}>
-                                <Pagination
-                                  count={Math.ceil(
-                                    results.context.matched /
-                                      results.context.limit
-                                  )}
-                                  page={page}
-                                  limit={4}
-                                  size="mini"
-                                  onChange={(nextPage) => {
-                                    console.log(3, nextPage);
-                                    setPage(nextPage);
-                                  }}
-                                />
-                              </Row>
-                            )
-                          )
-                        )}
-                      </Card.Footer>
-                    </Card>
-                    {pipe(
-                      searchResultsOption,
-                      fold(
-                        () => null,
-                        (results) =>
-                          results?.features?.length && (
-                            <div className={styles.resultsScrollContainer}>
-                              <div className={styles.resultsContainer}>
-                                {results.features.map((result, key) => (
-                                  <SearchResultItem result={result} key={key} />
-                                ))}
+                      <Card mb={2}>
+                        <Card.Content>
+                          {selectedCell.properties.id}
+                        </Card.Content>
+                        <Card.Divider />
+                        <Card.Content>
+                          <Flex justify="center">
+                            {pipe(
+                              searchResultsOption,
+                              fold(
+                                () => <Spinner />,
+                                (results) => (
+                                  <Text
+                                    fontSize="xs"
+                                    as="span"
+                                    fontWeight="bold"
+                                  >
+                                    {results.context.matched} images found
+                                  </Text>
+                                )
+                              )
+                            )}
+                          </Flex>
+                        </Card.Content>
+                      </Card>
+                      {pipe(
+                        searchResultsOption,
+                        fold(
+                          () => null,
+                          (results) =>
+                            results?.features?.length && (
+                              <div className={styles.resultsScrollContainer}>
+                                <Stack
+                                  direction="column"
+                                  minHeight="min-content"
+                                >
+                                  {results.features.map((result, key) => (
+                                    <SearchResultItem
+                                      result={result}
+                                      key={key}
+                                    />
+                                  ))}
+                                </Stack>
                               </div>
-                            </div>
-                          )
-                      )
-                    )}
+                            )
+                        )
+                      )}
+                    </Flex>
                   </>
                 )
               )
             )}
-          </div>
+          </Flex>
         </div>
       )
     )

@@ -1,17 +1,21 @@
 import styles from "../styles/Home.module.css";
-import {
-  Card,
-  Row,
-  Text,
-  Image,
-  Input,
-  useClipboard,
-  useToasts,
-  Spacer,
-} from "@geist-ui/react";
+import Card from "../components/Card";
 
 import { format } from "date-fns";
 import { useState } from "react";
+import { useCopyToClipboard } from "react-use";
+import {
+  AspectRatio,
+  Box,
+  Flex,
+  Text,
+  Image,
+  Input,
+  useToast,
+  Button,
+  IconButton,
+} from "@chakra-ui/core";
+import { BsClipboard } from "react-icons/bs";
 
 type Props = {
   result: any;
@@ -39,47 +43,52 @@ const generateCommand = (name, result) => {
 };
 
 export default function SearchResultItem({ result }: Props) {
-  const [, setToast] = useToasts();
-  const { copy } = useClipboard();
+  const toast = useToast();
+  const [, copy] = useCopyToClipboard();
   const [fileName, setFileName] = useState("");
 
   const onSubmitCommand = (e: React.FormEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    copy(generateCommand(fileName, result));
-    setToast({
-      text: "GDAL command copied!",
+    const file = fileName || "output";
+    copy(generateCommand(file, result));
+    toast({
+      title: fileName,
+      description: "GDAL command copied !",
     });
     return false;
   };
 
   return (
-    <Card style={{ marginBottom: "8px" }}>
+    <Card>
       <Card.Content>
-        <Row style={{ marginTop: "-8px" }} justify="start" align="middle">
-          <Text size={12} b>
-            {format(new Date(result.properties.datetime), "PPP")}
-          </Text>
-          <Spacer x={1} />
-          <Text size={12} span>
-            {result.properties["eo:cloud_cover"]}%
-          </Text>
-        </Row>
-        <Row style={{ marginBottom: "8px" }} justify="start" align="middle">
-          <Text size={12} span>
-            {result.collection}
-          </Text>
-        </Row>
-        <Image
-          className={styles.thumbnail}
-          width={343}
-          height={343}
-          src={result.assets.thumbnail.href}
-        />
+        <Box mb={3}>
+          <Flex>
+            <Text fontSize="xs" as="span" fontWeight="bold">
+              {format(new Date(result.properties.datetime), "PPP")}
+            </Text>
+            <Text fontSize="xs" as="span" ml={2}>
+              {result.properties["eo:cloud_cover"]}%
+            </Text>
+          </Flex>
+          <Box>
+            <Text fontSize="xs" as="span">
+              {result.collection}
+            </Text>
+          </Box>
+        </Box>
+        <AspectRatio maxW="100%" ratio={1} bg="gray.200">
+          <Image
+            border="1px solid #dadada"
+            width="100%"
+            src={result.assets.thumbnail.href}
+          />
+        </AspectRatio>
       </Card.Content>
-      <Card.Footer>
+      <Card.Divider />
+      <Card.Content>
         <form onSubmit={onSubmitCommand} style={{ width: "100%" }}>
-          <div style={{ display: "flex", width: "100%" }}>
+          <Flex>
             <Input
               name="name"
               placeholder="Output file name"
@@ -88,10 +97,19 @@ export default function SearchResultItem({ result }: Props) {
                 setFileName(e.target.value)
               }
               width="100%"
+              size="sm"
+              mr={2}
             />
-          </div>
+            <IconButton
+              icon={<BsClipboard />}
+              aria-label="Copy command to clipboard"
+              variant="outline"
+              type="submit"
+              size="sm"
+            />
+          </Flex>
         </form>
-      </Card.Footer>
+      </Card.Content>
     </Card>
   );
 }

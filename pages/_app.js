@@ -1,19 +1,12 @@
 import "../styles/globals.css";
-import { GeistProvider, CssBaseline } from "@geist-ui/react";
+import { ChakraProvider } from "@chakra-ui/core";
+import theme from "../theme";
 
 function MyApp({ Component, pageProps }) {
   return (
-    <GeistProvider
-      theme={{
-        layout: {
-          gapQuarter: "0pt",
-          gapQuarterNegative: "0pt",
-        },
-      }}
-    >
-      <CssBaseline />
+    <ChakraProvider resetCSS theme={theme}>
       <Component {...pageProps} />
-    </GeistProvider>
+    </ChakraProvider>
   );
 }
 
