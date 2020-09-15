@@ -15,39 +15,21 @@ import {
   Button,
   IconButton,
 } from "@chakra-ui/core";
-import { BsClipboard } from "react-icons/bs";
+import { BsClipboard, BsStarFill } from "react-icons/bs";
+import { generateCommand } from "../lib/generateCommand";
 
 type Props = {
   result: any;
+  isSaved: boolean;
+  onSave: (command: string, result: any) => void;
 };
 
-const getVsiPath = (url: string) => {
-  if (url.startsWith("s3")) {
-    return url.replace("s3://", "/vsis3/");
-  } else {
-    const s1 = url.replace("http://", "").replace("https://", "");
-    const s2 = s1.slice(0, s1.indexOf("."));
-    const s3 = s1.slice(s1.indexOf("/"));
-    return `/vsis3/${s2}${s3}`;
-  }
-};
-
-const generateCommand = (name, result) => {
-  return `AWS_DEFAULT_PROFILE=raster-foundry gdal_merge.py -co COMPRESS=DEFLATE -co PREDICTOR=2 -separate -o ${name
-    .toLowerCase()
-    .replaceAll(" ", "_")}.tif '${getVsiPath(
-    result.assets.B04.href
-  )}' '${getVsiPath(result.assets.B03.href)}' '${getVsiPath(
-    result.assets.B02.href
-  )}'`;
-};
-
-export default function SearchResultItem({ result }: Props) {
+export default function SearchResultItem({ result, onSave, isSaved }: Props) {
   const toast = useToast();
   const [, copy] = useCopyToClipboard();
   const [fileName, setFileName] = useState("");
 
-  const onSubmitCommand = (e: React.FormEvent) => {
+  const onClickCopyCommand = (e: React.FormEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const file = fileName || "output";
@@ -56,6 +38,14 @@ export default function SearchResultItem({ result }: Props) {
       title: fileName,
       description: "GDAL command copied !",
     });
+    return false;
+  };
+
+  const onSubmitCommand = (e: React.FormEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const file = fileName || "output";
+    onSave(generateCommand(file, result), result);
     return false;
   };
 
@@ -103,6 +93,14 @@ export default function SearchResultItem({ result }: Props) {
             <IconButton
               icon={<BsClipboard />}
               aria-label="Copy command to clipboard"
+              variant="outline"
+              onClick={onClickCopyCommand}
+              size="sm"
+              mr={1}
+            />
+            <IconButton
+              icon={<BsStarFill color={isSaved ? "orange" : "gray"} />}
+              aria-label="Save command for later"
               variant="outline"
               type="submit"
               size="sm"

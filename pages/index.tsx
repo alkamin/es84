@@ -1,4 +1,4 @@
-import { useRafState, useHash } from "react-use";
+import { useRafState, useHash, useCopyToClipboard } from "react-use";
 import styles from "../styles/Home.module.css";
 import { StaticMap, ViewportProps } from "react-map-gl";
 import DeckGL from "@deck.gl/react";
@@ -9,14 +9,17 @@ import { pipe } from "fp-ts/pipeable";
 import {
   Alert,
   AlertIcon,
+  Button,
   Box,
   Stack,
   Text,
+  Tag,
   Spinner,
   Flex,
   CloseButton,
+  useToast,
 } from "@chakra-ui/core";
-
+import { BsClipboard, BsStarFill } from "react-icons/bs";
 import axios from "axios";
 import wellknown from "../lib/wellknown";
 import SearchResultItem from "../components/SearchResultItem";
@@ -27,6 +30,11 @@ import Card from "../components/Card";
 type Viewport = Partial<Omit<ViewportProps, "width" | "height">> & {
   width: number | string;
   height: number | string;
+};
+type SavedCommand = {
+  id: string;
+  result: any;
+  command: string;
 };
 const MIN_GRID_ZOOM = 3;
 const PAGE_SIZE = 50;
@@ -77,6 +85,8 @@ export default function Home() {
   if (typeof window === "undefined") return <Spinner />;
 
   const [hash, setHash] = useHash();
+  const toast = useToast();
+  const [, copy] = useCopyToClipboard();
   const [viewportOption, setViewportOption] = useRafState<
     Option<Partial<Viewport>>
   >(none);
@@ -86,6 +96,7 @@ export default function Home() {
   const [searchResultsOption, setSearchResultsOption] = useState<Option<any>>(
     none
   );
+  const [savedCommands, setSavedCommands] = useState<SavedCommand[]>([]);
   const [page, setPage] = useState<number>(-1);
 
   const highlightedGridId = pipe(
@@ -115,18 +126,19 @@ export default function Home() {
       fold(
         () => {},
         async (selectedCell) => {
-          console.log(2);
-          const geom = buffer(
-            centroid(wellknown(selectedCell.properties.llWkt)),
-            10,
-            { units: "miles" }
-          ).geometry;
-          const resp = await axios.get(
-            `${SEARCH_API}?intersects=${encodeURIComponent(
-              JSON.stringify(geom)
-            )}&limit=${PAGE_SIZE}&page=${page}`
-          );
-          isLatest && setSearchResultsOption(some(resp.data));
+          if (!!selectedCell) {
+            const geom = buffer(
+              centroid(wellknown(selectedCell.properties.llWkt)),
+              10,
+              { units: "miles" }
+            ).geometry;
+            const resp = await axios.get(
+              `${SEARCH_API}?intersects=${encodeURIComponent(
+                JSON.stringify(geom)
+              )}&limit=${PAGE_SIZE}&page=${page}`
+            );
+            isLatest && setSearchResultsOption(some(resp.data));
+          }
         }
       )
     );
@@ -138,11 +150,11 @@ export default function Home() {
 
   const onClickGrid = ({ object: nextCell }) => {
     setPage(1);
-    nextCell &&
     pipe(
       selectedCellOption,
       exists(
-        (selectedCell) => selectedCell.properties.id === nextCell.properties.id
+        (selectedCell) =>
+          selectedCell?.properties?.id === nextCell?.properties?.id
       )
     )
       ? setSelectedCellOption(none)
@@ -150,6 +162,14 @@ export default function Home() {
   };
 
   const onClickClearSelection = () => setSelectedCellOption(none);
+
+  const onClickBulkCopy = () => {
+    copy(savedCommands.map((c) => c.command).join(" && "));
+    toast({
+      status: "success",
+      description: "Command for all saved images copied!",
+    });
+  };
 
   return pipe(
     viewportOption,
@@ -180,6 +200,27 @@ export default function Home() {
               height={viewport.height}
             />
           </DeckGL>
+          {!!savedCommands.length && (
+            <Flex
+              position="absolute"
+              top="0"
+              left="0"
+              p={2}
+              pointerEvents="none"
+            >
+              <Button
+                leftIcon={<BsStarFill />}
+                size="sm"
+                onClick={onClickBulkCopy}
+                pointerEvents="all"
+              >
+                Copy bulk command
+                <Tag ml={2} rounded="full" colorScheme="purple">
+                  {savedCommands.length}
+                </Tag>
+              </Button>
+            </Flex>
+          )}
           <Flex
             position="absolute"
             pointerEvents="none"
@@ -214,70 +255,108 @@ export default function Home() {
                     )}
                   </>
                 ),
-                (selectedCell) => (
-                  <>
-                    <CloseButton
-                      size="md"
-                      onClick={onClickClearSelection}
-                      bg="rgba(255,255,255,0.5)"
-                      mr={2}
-                      pointerEvents="all"
-                    />
-                    <Flex
-                      flex="1 1 auto"
-                      direction="column"
-                      alignSelf="stretch"
-                    >
-                      <Card mb={2}>
-                        <Card.Content>
-                          {selectedCell.properties.id}
-                        </Card.Content>
-                        <Card.Divider />
-                        <Card.Content>
-                          <Flex justify="center">
-                            {pipe(
-                              searchResultsOption,
-                              fold(
-                                () => <Spinner />,
-                                (results) => (
-                                  <Text
-                                    fontSize="xs"
-                                    as="span"
-                                    fontWeight="bold"
-                                  >
-                                    {results.context.matched} images found
-                                  </Text>
+                (selectedCell) =>
+                  !!selectedCell && (
+                    <>
+                      <CloseButton
+                        size="md"
+                        onClick={onClickClearSelection}
+                        bg="rgba(255,255,255,0.5)"
+                        mr={2}
+                        pointerEvents="all"
+                      />
+                      <Flex
+                        flex="1 1 auto"
+                        direction="column"
+                        alignSelf="stretch"
+                      >
+                        <Card mb={2}>
+                          <Card.Content>
+                            {selectedCell.properties.id}
+                          </Card.Content>
+                          <Card.Divider />
+                          <Card.Content>
+                            <Flex justify="center">
+                              {pipe(
+                                searchResultsOption,
+                                fold(
+                                  () => <Spinner />,
+                                  (results) => (
+                                    <Text
+                                      fontSize="xs"
+                                      as="span"
+                                      fontWeight="bold"
+                                    >
+                                      {results.context.matched} images found
+                                    </Text>
+                                  )
                                 )
+                              )}
+                            </Flex>
+                          </Card.Content>
+                        </Card>
+                        {pipe(
+                          searchResultsOption,
+                          fold(
+                            () => null,
+                            (results) =>
+                              results?.features?.length && (
+                                <div className={styles.resultsScrollContainer}>
+                                  <Stack
+                                    direction="column"
+                                    minHeight="min-content"
+                                  >
+                                    {results.features.map((result, key) => (
+                                      <SearchResultItem
+                                        result={result}
+                                        key={key}
+                                        isSaved={
+                                          savedCommands.findIndex(
+                                            (i) => i.id === result.id
+                                          ) > -1
+                                        }
+                                        onSave={(command, result) => {
+                                          setSavedCommands((commands) => {
+                                            const isAlreadySaved =
+                                              commands.findIndex(
+                                                (i) => i.id === result.id
+                                              ) > -1;
+                                            if (isAlreadySaved) {
+                                              toast({
+                                                id: result.id,
+                                                status: "warning",
+                                                description:
+                                                  "Image no longer saved",
+                                              });
+                                              return commands.filter(
+                                                (i) => i.id !== result.id
+                                              );
+                                            }
+                                            toast({
+                                              id: result.id,
+                                              status: "success",
+                                              description: "Saved image",
+                                            });
+                                            return [
+                                              ...commands,
+                                              {
+                                                id: result.id,
+                                                result,
+                                                command,
+                                              },
+                                            ];
+                                          });
+                                        }}
+                                      />
+                                    ))}
+                                  </Stack>
+                                </div>
                               )
-                            )}
-                          </Flex>
-                        </Card.Content>
-                      </Card>
-                      {pipe(
-                        searchResultsOption,
-                        fold(
-                          () => null,
-                          (results) =>
-                            results?.features?.length && (
-                              <div className={styles.resultsScrollContainer}>
-                                <Stack
-                                  direction="column"
-                                  minHeight="min-content"
-                                >
-                                  {results.features.map((result, key) => (
-                                    <SearchResultItem
-                                      result={result}
-                                      key={key}
-                                    />
-                                  ))}
-                                </Stack>
-                              </div>
-                            )
-                        )
-                      )}
-                    </Flex>
-                  </>
-                )
+                          )
+                        )}
+                      </Flex>
+                    </>
+                  )
               )
             )}
           </Flex>
